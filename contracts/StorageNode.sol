@@ -36,6 +36,14 @@ contract StorageNode is Merkle {
         StorageNode,
         ClientNode
     }
+
+    event EvValidationSubmitted(
+        address userAddress,
+        bytes32 fileMerkleRoot,
+        uint32 segmentIndex,
+        uint256 timestamp
+    );
+
     /**
      * @dev Generated for storage node to begin validation protocol
      */
@@ -45,6 +53,12 @@ contract StorageNode is Merkle {
         uint256 timestamp,
         uint256 expiryTimestamp,
         uint32 segmentIndex
+    );
+
+    event EvValidationExpired(
+        address userAddress,
+        bytes32 fileMerkleRootHash,
+        uint256 timestamp
     );
 
     constructor(bytes memory _TLSCert, string memory _HOST) {
@@ -222,15 +236,26 @@ contract StorageNode is Merkle {
         Transaction storage t = transactionMapping[ref];
         require(t.size > 0, "invalid tx");
         require(t.userConcluded == true, "tx not concluded");
+        require(
+            block.timestamp < (t.validationRequestTime + t.proveTimeoutLength),
+            "validation window expired"
+        );
         uint32 segmentInd = t.validationSegmentInd;
         bytes32 leafHash = keccak256(data);
 
         bool isValid = verify(proof, rootHash, leafHash, segmentInd);
-        if (isValid) {
-            /// Todo: emit validated event
-            t.validationRequestTime = 0;
-        }
-        return isValid;
+
+        require(isValid == true, "invalid proof");
+
+        emit EvValidationSubmitted(
+            userAddress,
+            rootHash,
+            t.validationSegmentInd,
+            block.timestamp
+        );
+        t.validationRequestTime = 0;
+        t.validationSegmentInd = 0;
+        return true;
     }
 
     /**
@@ -243,7 +268,7 @@ contract StorageNode is Merkle {
         require(t.userConcluded == true, "tx not concluded");
         require(t.validationRequestTime > 0, "validation not started");
         require(
-            block.timestamp < t.validationRequestTime + t.proveTimeoutLength,
+            block.timestamp > (t.validationRequestTime + t.proveTimeoutLength),
             "validation window not expired"
         );
         /// Todo: release amount to user
@@ -252,9 +277,7 @@ contract StorageNode is Merkle {
         lockedCollateral -= transferAmount;
         payable(userAddress).transfer(transferAmount);
 
-        /**
-         * Todo: emit validation expired event
-         */
+        emit EvValidationExpired(userAddress, rootHash, block.timestamp);
         t.size = 0; // remove tx
         t.userConcluded = false;
     }
