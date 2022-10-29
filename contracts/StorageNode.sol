@@ -1,42 +1,63 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
+import "./Merkle.sol";
 
-// Version PROTOTYPE: 1.1
+// Version PROTOTYPE: 1
 
 // import "hardhat/console.sol";
 
-contract StorageNode {
+contract StorageNode is Merkle {
     bytes public TLSCert;
     string public HOST;
 
     uint256 public lockedCollateral = 0;
 
     struct Transaction {
-        bytes20 merkleRootHash;
+        bytes32 merkleRootHash;
         uint32 size;
-        uint256 timerStart;
+        uint256 timerStart; // UNIX timestamp (in seconds)
         uint256 timerEnd;
-        uint64 proveTimeoutLength;
+        uint64 proveTimeoutLength; // in seconds
         uint32 segmentsCount;
         bool userConcluded;
         uint64 concludeTimeoutLength;
         uint256 bidAmount;
+        uint256 validationRequestTime;
+        uint32 validationSegmentInd;
     }
     uint256 public mappingLength = 0;
     // Contains the address list (keys) of the mappings
-    address[] public mappingsList;
+    bytes32[] public mappingsList;
 
     //Store mapping address => Transaction
-    mapping(address => Transaction) transactionMapping; // single address => single-file
+    mapping(bytes32 => Transaction) transactionMapping; // single address => single-file
 
     enum CallerType {
         StorageNode,
         ClientNode
     }
+    /**
+     * @dev Generated for storage node to begin validation protocol
+     */
+    event EvProveStorage(
+        address userAddress,
+        bytes32 fileMerkleRootHash,
+        uint256 timestamp,
+        uint256 expiryTimestamp,
+        uint32 segmentIndex
+    );
 
     constructor(bytes memory _TLSCert, string memory _HOST) {
         TLSCert = _TLSCert;
         HOST = _HOST;
+    }
+
+    function computeKey(address userAddress, bytes32 merkleRootHash)
+        public
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(userAddress, merkleRootHash));
     }
 
     /**
@@ -49,7 +70,7 @@ contract StorageNode {
     function concludeTransaction(
         CallerType callerType,
         address userAddress,
-        bytes20 merkleRootHash,
+        bytes32 merkleRootHash,
         uint32 fileSize,
         uint256 timerStart,
         uint256 timerEnd,
@@ -62,7 +83,8 @@ contract StorageNode {
             /**
              * Proposal: transationMapping key = keccak256(concat(userAddress,merkleRootHash))
              */
-            Transaction storage t = transactionMapping[userAddress];
+            bytes32 ref = computeKey(userAddress, merkleRootHash);
+            Transaction storage t = transactionMapping[ref];
 
             // check if we already have file
             require(t.size == 0, "file already stored");
@@ -84,15 +106,18 @@ contract StorageNode {
             t.userConcluded = false;
             t.concludeTimeoutLength = concludeTimeoutLength;
             t.bidAmount = bidAmount;
+            t.validationRequestTime = 0;
+            t.validationSegmentInd = 0;
 
             mappingLength += 1;
         } else if (callerType == CallerType.ClientNode) {
-            Transaction storage t = transactionMapping[msg.sender];
+            bytes32 ref = computeKey(msg.sender, merkleRootHash);
+            Transaction storage t = transactionMapping[ref];
             require(t.merkleRootHash == merkleRootHash, "root mismatch");
             require(t.size == fileSize, "size mismatch");
             require(t.segmentsCount == segmentsCount, "segments mismatch");
-            require(t.timerStart == timerStart, "timestart mismatch");
-            require(t.timerEnd == timerEnd, "timeend mismatch");
+            require(t.timerStart == timerStart, "timerstart mismatch");
+            require(t.timerEnd == timerEnd, "timerend mismatch");
             require(
                 t.proveTimeoutLength == proveTimeoutLength,
                 "proveTimeout mismatch"
@@ -126,13 +151,18 @@ contract StorageNode {
      * `collateral + reward`. The block timestamp must be greater than or equal to
      *  the agreed timerEnd. Storage Node will no longer be liable for this file storage.
      */
-    function finishTransaction(address userAddress) public {
-        Transaction storage t = transactionMapping[userAddress];
+    function finishTransaction(address userAddress, bytes32 merkleRootHash)
+        public
+    {
+        bytes32 ref = computeKey(userAddress, merkleRootHash);
+        Transaction storage t = transactionMapping[ref];
+
         require(t.size > 0, "invalid opr");
         require(t.userConcluded == true, "invalid tx");
         require(block.timestamp >= t.timerEnd, "not expired");
 
         lockedCollateral -= t.bidAmount * 2;
+        // To-do: emit finish event
 
         t.size = 0; //reset slot
     }
@@ -150,13 +180,84 @@ contract StorageNode {
     /**
      * @dev Invoked by Client Node to verify file storage with in specific time period.
      */
-    function validateStorage() public {}
+    function validateStorage(
+        address userAddress,
+        bytes32 fileRootHash,
+        uint32 segmentIndex
+    ) public {
+        bytes32 ref = computeKey(userAddress, fileRootHash);
+        Transaction storage t = transactionMapping[ref];
+        require(t.size > 0, "mapping doesn't exists");
+        require(t.userConcluded == true, "user hasn't concluded");
+        require(
+            segmentIndex >= 0 && segmentIndex < t.segmentsCount,
+            "invalid segmentIndex"
+        );
+        require(
+            block.timestamp > (t.validationRequestTime + t.proveTimeoutLength),
+            "validation is already in progress"
+        );
+        t.validationRequestTime = block.timestamp;
+        t.validationSegmentInd = segmentIndex;
+        emit EvProveStorage(
+            userAddress,
+            fileRootHash,
+            (block.timestamp),
+            (block.timestamp + uint256(t.proveTimeoutLength)),
+            segmentIndex
+        );
+    }
 
-    //  TODO
+    /// TODO
     /**
      * @dev Invoked by Storage Node to submit storage proof.
      */
-    function processProof() public {}
+    function processValidation(
+        address userAddress,
+        bytes32 rootHash,
+        bytes calldata data,
+        bytes32[] calldata proof
+    ) public returns (bool) {
+        bytes32 ref = computeKey(userAddress, rootHash);
+        Transaction storage t = transactionMapping[ref];
+        require(t.size > 0, "invalid tx");
+        require(t.userConcluded == true, "tx not concluded");
+        uint32 segmentInd = t.validationSegmentInd;
+        bytes32 leafHash = keccak256(data);
+
+        bool isValid = verify(proof, rootHash, leafHash, segmentInd);
+        if (isValid) {
+            /// Todo: emit validated event
+            t.validationRequestTime = 0;
+        }
+        return isValid;
+    }
+
+    /**
+     * @dev invoked by client node
+     */
+    function validationExpired(address userAddress, bytes32 rootHash) public {
+        bytes32 ref = computeKey(userAddress, rootHash);
+        Transaction storage t = transactionMapping[ref];
+        require(t.size > 0, "invalid tx");
+        require(t.userConcluded == true, "tx not concluded");
+        require(t.validationRequestTime > 0, "validation not started");
+        require(
+            block.timestamp < t.validationRequestTime + t.proveTimeoutLength,
+            "validation window not expired"
+        );
+        /// Todo: release amount to user
+
+        uint256 transferAmount = t.bidAmount * 2; //twice
+        lockedCollateral -= transferAmount;
+        payable(userAddress).transfer(transferAmount);
+
+        /**
+         * Todo: emit validation expired event
+         */
+        t.size = 0; // remove tx
+        t.userConcluded = false;
+    }
 
     /**
      * @dev Fallback function to receive ether ( deposit )
