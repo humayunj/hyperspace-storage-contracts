@@ -9,7 +9,7 @@ import "./Merkle.sol";
 contract StorageNode is Merkle {
     bytes public TLSCert;
     string public HOST;
-
+    address public owner;
     uint256 public lockedCollateral = 0;
 
     struct Transaction {
@@ -61,9 +61,14 @@ contract StorageNode is Merkle {
         uint256 timestamp
     );
 
-    constructor(bytes memory _TLSCert, string memory _HOST) {
+    constructor(
+        bytes memory _TLSCert,
+        string memory _HOST,
+        address _owner
+    ) {
         TLSCert = _TLSCert;
         HOST = _HOST;
+        owner = _owner;
     }
 
     function computeKey(address userAddress, bytes32 merkleRootHash)
@@ -94,6 +99,7 @@ contract StorageNode is Merkle {
         uint256 bidAmount
     ) public payable {
         if (callerType == CallerType.StorageNode) {
+            require(msg.sender == owner, "only owner can conclude tx");
             /**
              * Proposal: transationMapping key = keccak256(concat(userAddress,merkleRootHash))
              */
@@ -168,6 +174,7 @@ contract StorageNode is Merkle {
     function finishTransaction(address userAddress, bytes32 merkleRootHash)
         public
     {
+        require(msg.sender == owner, "only owner can finish tx");
         bytes32 ref = computeKey(userAddress, merkleRootHash);
         Transaction storage t = transactionMapping[ref];
 
@@ -185,6 +192,8 @@ contract StorageNode is Merkle {
      * @dev To be invoked by Storage Node to withdraw specific non-collateral amount.
      */
     function withdraw(uint256 amount, address target) public {
+        require(msg.sender == owner, "only owner can withdraw");
+
         uint256 b = address(this).balance - lockedCollateral;
         require(b >= amount, "insufficent blnc");
         payable(target).transfer(amount);
@@ -232,6 +241,8 @@ contract StorageNode is Merkle {
         bytes calldata data,
         bytes32[] calldata proof
     ) public returns (bool) {
+        require(msg.sender == owner, "only owner can process validation");
+
         bytes32 ref = computeKey(userAddress, rootHash);
         Transaction storage t = transactionMapping[ref];
         require(t.size > 0, "invalid tx");

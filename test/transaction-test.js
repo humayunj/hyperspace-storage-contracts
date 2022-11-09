@@ -10,10 +10,13 @@ describe("Storage Node", function () {
   beforeEach(async () => {
     snapshotId = await network.provider.send("evm_snapshot");
     // console.log("snapshot:", snapshotId);
+    const owner = (await ethers.getSigners())[0];
+
     StorageNodeContract = await ethers.getContractFactory("StorageNode");
     node = await StorageNodeContract.deploy(
       ethers.utils.arrayify("0x123456"), // TLSCert
-      "http://localhost:8000" // HOST
+      "http://localhost:8000", // HOST
+      owner.address
     );
 
     await node.deployed();

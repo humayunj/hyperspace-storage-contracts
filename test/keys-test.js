@@ -5,10 +5,12 @@ const { randomBytes } = require("crypto");
 
 describe("Transaction key tests", function () {
   it("validates compute function", async function () {
+    const owner = (await ethers.getSigners())[0];
     const StorageNodeContract = await ethers.getContractFactory("StorageNode");
     const node = await StorageNodeContract.deploy(
       ethers.utils.arrayify("0x123456"), // TLSCert
-      "http://localhost:8000" // HOST
+      "http://localhost:8000", // HOST
+      owner.address
     );
 
     await node.deployed();
