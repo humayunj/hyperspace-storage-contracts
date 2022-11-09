@@ -1,15 +1,11 @@
-# Basic Sample Hardhat Project
+# Hyperspace Storage Node Contract
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+Bootstrapped with Hardhat. Use scripts for deployments and to create new storage contracts using factory. Replace hardcoded addresses in script files.
 
-Try running some of the following tasks:
+## Testing
 
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-node scripts/sample-script.js
-npx hardhat help
-```
+Use `yarn hardhat test` to make sure everything is working as expected before deploying.
+
+## Bindings
+
+Use `yarn generate:go` to generate Go language bindings.

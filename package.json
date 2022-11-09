@@ -1,4 +1,12 @@
 {
+  "scripts": {
+    "deploy:factory": "yarn hard test && yarn hardhat run --network localhost scripts/deploy-factory.js",
+    "generate:abi": "solc  --abi ./contracts/Merkle.sol ./contracts/StorageNode.sol ./contracts/StorageNodeFactory.sol -o ./bindings/abi/",
+    "generate:bin": "solc  --bin ./contracts/Merkle.sol ./contracts/StorageNode.sol ./contracts/StorageNodeFactory.sol -o ./bindings/bin/",
+    "generate:gen:go:storage-node": "abigen --bin=./bindings/bin/StorageNode.bin --abi=./bindings/abi/StorageNode.abi --pkg=StorageNodeContract --out=./bindings/go/StorageNodeContract.go",
+    "generate:gen:go:storage-node-factory": "abigen --bin=./bindings/bin/StorageNodeFactory.bin --abi=./bindings/abi/StorageNodeFactory.abi --pkg=StorageNodeFactoryContract --out=./bindings/go/StorageNodeFactoryContract.go",
+    "generate:go": "rm -rf ./bindings && mkdir -p ./bindings/go/ && yarn generate:abi && yarn generate:bin && yarn generate:gen:go:storage-node && yarn generate:gen:go:storage-node-factory"
+  },
   "dependencies": {
     "hardhat": "^2.9.7",
     "merkletreejs": "^0.3.0"
