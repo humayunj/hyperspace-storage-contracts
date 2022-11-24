@@ -18,5 +18,17 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  */
 module.exports = {
   solidity: "0.8.4",
-  
+  networks: {
+    ganache: {
+      url: "http://127.0.0.1:7545",
+      accounts: {
+        mnemonic:
+          "rural type globe skull action youth embrace globe river salmon enrich party",
+        path: "m/44'/60'/0'/0/",
+        initialIndex: 0,
+        count: 10,
+        passphrase: "",
+      },
+    },
+  },
 };

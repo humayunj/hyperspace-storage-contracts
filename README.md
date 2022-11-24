@@ -1,4 +1,4 @@
-# Hyperspace Storage Node Contract
+# HyperSpace — Storage Node Contract
 
 Bootstrapped with Hardhat. Use scripts for deployments and to create new storage contracts using factory. Replace hardcoded addresses in script files.
 

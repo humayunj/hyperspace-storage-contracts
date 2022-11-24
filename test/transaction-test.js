@@ -28,9 +28,10 @@ describe("Storage Node", function () {
     const signers = await ethers.getSigners();
     await signers[0].sendTransaction({
       to: node.address,
-      value: ethers.utils.parseEther("1.0"),
+      value: BigInt(1000 * 2),
     });
 
+    //ethers.utils.parseEther("1.0")
     // console.log("BL:", await signers[0].getBalance());
     const FILE_HASH = ethers.utils.arrayify(randomBytes(32));
     const TStart = Date.now();
