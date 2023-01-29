@@ -44,6 +44,20 @@ contract StorageNode is Merkle {
         uint256 timestamp
     );
 
+    event EvTxConclude(
+        CallerType caller,
+        address userAddress,
+        bytes32 merkleRootHash,
+        uint32 fileSize,
+        uint256 timerStart,
+        uint256 timerEnd,
+        uint64 proveTimeoutLength,
+        uint64 concludeTimeoutLength,
+        uint32 segmentsCount,
+        uint256 bidAmount,
+        bytes32 computedKey
+    );
+
     /**
      * @dev Generated for storage node to begin validation protocol
      */
@@ -104,6 +118,20 @@ contract StorageNode is Merkle {
              * Proposal: transationMapping key = keccak256(concat(userAddress,merkleRootHash))
              */
             bytes32 ref = computeKey(userAddress, merkleRootHash);
+
+            emit EvTxConclude(
+                callerType,
+                userAddress,
+                merkleRootHash,
+                fileSize,
+                timerStart,
+                timerEnd,
+                proveTimeoutLength,
+                concludeTimeoutLength,
+                segmentsCount,
+                bidAmount,
+                ref
+            );
             Transaction storage t = transactionMapping[ref];
 
             // check if we already have file, also check if conclude length is expired
@@ -136,6 +164,21 @@ contract StorageNode is Merkle {
             mappingLength += 1;
         } else if (callerType == CallerType.ClientNode) {
             bytes32 ref = computeKey(msg.sender, merkleRootHash);
+
+            emit EvTxConclude(
+                callerType,
+                userAddress,
+                merkleRootHash,
+                fileSize,
+                timerStart,
+                timerEnd,
+                proveTimeoutLength,
+                concludeTimeoutLength,
+                segmentsCount,
+                bidAmount,
+                ref
+            );
+
             Transaction storage t = transactionMapping[ref];
 
             require(t.size > 0, "no transaction entry found to conclude");
