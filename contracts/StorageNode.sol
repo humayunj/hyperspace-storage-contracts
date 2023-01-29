@@ -106,8 +106,12 @@ contract StorageNode is Merkle {
             bytes32 ref = computeKey(userAddress, merkleRootHash);
             Transaction storage t = transactionMapping[ref];
 
-            // check if we already have file
-            require(t.size == 0, "file already stored");
+            // check if we already have file, also check if conclude length is expired
+            require(
+                t.size == 0 ||
+                    block.timestamp > (t.timerStart + t.concludeTimeoutLength),
+                "file already stored or waiting for conclusion"
+            );
             require(
                 timerEnd > block.timestamp,
                 "timerEnd must be > current timestamp"
@@ -133,6 +137,9 @@ contract StorageNode is Merkle {
         } else if (callerType == CallerType.ClientNode) {
             bytes32 ref = computeKey(msg.sender, merkleRootHash);
             Transaction storage t = transactionMapping[ref];
+
+            require(t.size > 0, "no transaction entry found to conclude");
+
             require(t.merkleRootHash == merkleRootHash, "root mismatch");
             require(t.size == fileSize, "size mismatch");
             require(t.segmentsCount == segmentsCount, "segments mismatch");

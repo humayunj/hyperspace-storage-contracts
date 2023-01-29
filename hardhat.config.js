@@ -30,5 +30,11 @@ module.exports = {
         passphrase: "",
       },
     },
+    optimism_goerli: {
+      url: "https://opt-goerli.g.alchemy.com/v2/lLvcVplpamR-7ZTitncsc_qSPkenwum9",
+      accounts: [
+        "c82b0a506338902b235d18cb3827e7fe8806aaf71d9994f0d771d849d660ee38",
+      ],
+    },
   },
 };
