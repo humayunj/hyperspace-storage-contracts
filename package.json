@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "hardhat": "^2.9.7",
+    "keccak256": "^1.0.6",
     "merkletreejs": "^0.3.0"
   },
   "devDependencies": {

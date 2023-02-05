@@ -2,8 +2,6 @@
 pragma solidity ^0.8.0;
 import "./Merkle.sol";
 
-// Version PROTOTYPE: 1
-
 // import "hardhat/console.sol";
 
 contract StorageNode is Merkle {
@@ -198,7 +196,7 @@ contract StorageNode is Merkle {
             );
             require(t.bidAmount == bidAmount, "bid amount mismatch");
             require(t.userConcluded == false, "user concluded already");
-            require(msg.value >= bidAmount, "amount must be >= bidAmount"); // refund policy?
+            require(msg.value >= bidAmount, "amount must be >= bidAmount");
             require(
                 block.timestamp <= (t.timerStart + t.concludeTimeoutLength),
                 "conclude Timed out"
@@ -304,7 +302,8 @@ contract StorageNode is Merkle {
         uint32 segmentInd = t.validationSegmentInd;
         bytes32 leafHash = keccak256(data);
 
-        bool isValid = verify(proof, rootHash, leafHash, segmentInd);
+        uint8[] memory array = new uint8[](1);
+        bool isValid = verify(proof, rootHash, leafHash, segmentInd, array);
 
         require(isValid == true, "invalid proof");
 

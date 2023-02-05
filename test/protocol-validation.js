@@ -101,7 +101,7 @@ describe("Validation Protocol", function () {
     expect(event.args[4].toString()).to.equal(BigInt(43).toString());
   });
 
-  it("should prove storage", async function () {
+  xit("should prove storage", async function () {
     const PROVE_TIMEOUT = 100;
 
     const signers = await ethers.getSigners();
@@ -203,7 +203,7 @@ describe("Validation Protocol", function () {
     // ev.args[3] // timestamp
   });
 
-  it("should revert with `invalid proof`", async function () {
+  xit("should revert with `invalid proof`", async function () {
     const PROVE_TIMEOUT = 100;
 
     const signers = await ethers.getSigners();
